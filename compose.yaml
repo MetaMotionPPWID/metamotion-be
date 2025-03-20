@@ -1,5 +1,7 @@
 services: 
-  backend: 
+  backend:
+    env_file:
+      - ./.env
     build:
      context: app
      target: builder

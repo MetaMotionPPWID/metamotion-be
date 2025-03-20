@@ -4,6 +4,7 @@ FROM --platform=$BUILDPLATFORM python:3.10-alpine AS builder
 WORKDIR /app
 
 COPY requirements.txt /app
+RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install -r requirements.txt
 
