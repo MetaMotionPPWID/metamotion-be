@@ -19,3 +19,15 @@ services:
     ports:
       - "5432:5432"
     restart: always
+  pgadmin:
+    image: 'docker.io/dpage/pgadmin4:latest'
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_DEFAULT_EMAIL}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD}"
+    ports:
+      - 15080:80
+    volumes:
+      - ./pgadmin-data:/var/lib/pgadmin/
+    depends_on:
+      - db
+    user: "${UID}:${GID}"
