@@ -9,6 +9,11 @@ services:
       - '8000:8000'
     depends_on:
       - db
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./app
+          target: /app
   db:
     container_name: postgres_meta_motion
     image: postgres:latest
