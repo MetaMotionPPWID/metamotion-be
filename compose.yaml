@@ -7,11 +7,15 @@ services:
      target: builder
     ports: 
       - '8000:8000'
+    depends_on:
+      - db
   db:
     container_name: postgres_meta_motion
     image: postgres:latest
     env_file:
       - ./.env
+    volumes:
+      - ./db_data:/var/lib/postgresql/data 
     ports:
       - "5432:5432"
     restart: always
