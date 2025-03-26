@@ -46,7 +46,11 @@ def register():
     if len(password) < 7:
         return jsonify({"error": "Password must have at least 7 characters"}), 400
 
-    existing_user = User.query.filter_by(login=login).first()
+    try:
+        existing_user = User.query.filter_by(login=login).first()
+    except Exception as e:
+        app.logger.error(e)
+        return jsonify({"error": "Internal server error"}), 500
     if existing_user:
         return jsonify({"error": "User already exists"}), 400
 
@@ -61,7 +65,43 @@ def register():
         db.session.commit()
         return '', 201
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(e)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    required_params = {
+        "login": str,
+        "password": str
+    }
+    errors = validation(data, required_params)
+    if errors:
+        return jsonify({"error": errors}), 400
+
+    login = request.json.get("login")
+    password = request.json.get("password")
+
+    try:
+        user = User.query.filter_by(login=login).first()
+    except Exception as e:
+        app.logger.error(e)
+        return jsonify({"error": "Internal server error"}), 500
+
+    if not user:
+        return jsonify({"error": "User does not exist"}), 401
+
+    if bcrypt.checkpw(
+            password.encode('utf-8'),
+            user.password.encode('utf-8')
+    ):
+        return jsonify({
+            "access_token": "",
+            "refresh_token": ""
+        }), 200
+    else:
+        return jsonify({"error": "Invalid password"}), 401
 
 
 def validation(data, required_params):
