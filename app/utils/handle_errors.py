@@ -12,9 +12,6 @@ def handle_db_errors(f):
         except SQLAlchemyError as e:
             current_app.logger.error(f"DB error: {e}")
             return jsonify({"error": "Internal server error"}), 500
-        except Exception as e:
-            current_app.logger.error(f"Unexpected error: {e}")
-            return jsonify({"error": "Internal server error"}), 500
 
     return wrapper
 

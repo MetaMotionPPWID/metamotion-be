@@ -1,8 +1,7 @@
-from flask import Flask
+from flask import Flask, current_app, jsonify
 from extension import db, jwt
 import os
 from datetime import timedelta
-
 
 app = Flask(__name__)
 
@@ -27,7 +26,17 @@ with app.app_context():
     db.create_all()
 
 from blueprints.auth import auth_bp
+from blueprints.sensors import sensors_bp
+
 app.register_blueprint(auth_bp, url_prefix='/auth')
+app.register_blueprint(sensors_bp, url_prefix='/sensors')
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_errors(e):
+    current_app.logger.error(f"Unexpected error: {e}")
+    return jsonify({"error": "Internal server error"}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)
