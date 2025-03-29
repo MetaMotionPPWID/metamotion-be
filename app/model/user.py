@@ -1,5 +1,4 @@
-from . import db
-
+from extension import db
 
 class User(db.Model):
     __tablename__ = 'users'

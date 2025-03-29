@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify, current_app
 import bcrypt
+from flask_jwt_extended import create_access_token, create_refresh_token
 from model.user import User
 
 auth_bp = Blueprint('auth', __name__)
+
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -24,7 +26,7 @@ def register():
         return jsonify({"error": "Password must have at least 7 characters"}), 400
 
     try:
-        existing_user = User.query.filter_by(login=login).first()
+        existing_user = User.get_user_by_username(login)
     except Exception as e:
         current_app.logger.error(e)
         return jsonify({"error": "Internal server error"}), 500
@@ -60,7 +62,7 @@ def login():
     password = request.json.get("password")
 
     try:
-        user = User.query.filter_by(login=login).first()
+        user = User.get_user_by_username(login)
     except Exception as e:
         current_app.logger.error(e)
         return jsonify({"error": "Internal server error"}), 500
@@ -72,12 +74,14 @@ def login():
             password.encode('utf-8'),
             user.password.encode('utf-8')
     ):
+        access_token = create_access_token(identity=user.login)
+        refresh_token = create_refresh_token(identity=user.login)
         return jsonify({
-            "access_token": "",
-            "refresh_token": ""
+            "access_token": access_token,
+            "refresh_token": refresh_token
         }), 200
-    else:
-        return jsonify({"error": "Invalid password"}), 401
+
+    return jsonify({"error": "Invalid password"}), 401
 
 
 def validation(data, required_params):
