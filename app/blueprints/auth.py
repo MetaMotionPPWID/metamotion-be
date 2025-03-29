@@ -27,20 +27,15 @@ def register():
     if len(password) < 7:
         return jsonify({"error": "Password must have at least 7 characters"}), 400
 
-
     existing_user = User.get_user_by_username(login)
     if existing_user:
         return jsonify({"error": "User already exists"}), 400
 
-    hashed_password = bcrypt.hashpw(
-        password.encode('utf-8'),
-        bcrypt.gensalt()
-    ).decode('utf-8')
+    hashed_password = hash_password(password)
 
     new_user = User(login=login, password=hashed_password)
     new_user.save()
     return '', 201
-
 
 
 @auth_bp.route('/login', methods=['POST'])
@@ -62,10 +57,7 @@ def login():
     if not user:
         return jsonify({"error": "User does not exist"}), 404
 
-    if bcrypt.checkpw(
-            password.encode('utf-8'),
-            user.password.encode('utf-8')
-    ):
+    if verify_password(password, user.password):
         access_token = create_access_token(identity=user.login)
         refresh_token = create_refresh_token(identity=user.login)
         return jsonify({
@@ -74,6 +66,20 @@ def login():
         }), 200
 
     return jsonify({"error": "Invalid password"}), 401
+
+
+def hash_password(password):
+    return bcrypt.hashpw(
+        password.encode('utf-8'),
+        bcrypt.gensalt()
+    ).decode('utf-8')
+
+
+def verify_password(plain_password, hashed_password):
+    return bcrypt.checkpw(
+        plain_password.encode('utf-8'),
+        hashed_password.encode('utf-8')
+    )
 
 
 def validation(data, required_params):
