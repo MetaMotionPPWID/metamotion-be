@@ -38,18 +38,16 @@ def login():
     password = data.get("password")
 
     user = User.get_user_by_username(login)
-    if not user:
-        return jsonify({"error": "User does not exist"}), 404
 
-    if verify_password(password, user.password):
-        access_token = create_access_token(identity=user.login)
-        refresh_token = create_refresh_token(identity=user.login)
-        return jsonify({
-            "access_token": access_token,
-            "refresh_token": refresh_token
-        }), 200
+    if not user or not verify_password(password, user.password):
+        return jsonify({"error": "Invalid credentials"}), 401
 
-    return jsonify({"error": "Invalid password"}), 401
+    access_token = create_access_token(identity=user.login)
+    refresh_token = create_refresh_token(identity=user.login)
+    return jsonify({
+        "access_token": access_token,
+        "refresh_token": refresh_token
+    }), 200
 
 
 def hash_password(password):
