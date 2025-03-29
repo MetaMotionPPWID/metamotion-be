@@ -2,11 +2,13 @@ from flask import Blueprint, request, jsonify, current_app
 import bcrypt
 from flask_jwt_extended import create_access_token, create_refresh_token
 from model.user import User
+from utils.handle_errors import handle_db_errors
 
 auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/register', methods=['POST'])
+@handle_db_errors
 def register():
     data = request.get_json()
     required_params = {
@@ -25,11 +27,8 @@ def register():
     if len(password) < 7:
         return jsonify({"error": "Password must have at least 7 characters"}), 400
 
-    try:
-        existing_user = User.get_user_by_username(login)
-    except Exception as e:
-        current_app.logger.error(e)
-        return jsonify({"error": "Internal server error"}), 500
+
+    existing_user = User.get_user_by_username(login)
     if existing_user:
         return jsonify({"error": "User already exists"}), 400
 
@@ -38,16 +37,14 @@ def register():
         bcrypt.gensalt()
     ).decode('utf-8')
 
-    try:
-        new_user = User(login=login, password=hashed_password)
-        new_user.save()
-        return '', 201
-    except Exception as e:
-        current_app.logger.error(e)
-        return jsonify({"error": "Internal server error"}), 500
+    new_user = User(login=login, password=hashed_password)
+    new_user.save()
+    return '', 201
+
 
 
 @auth_bp.route('/login', methods=['POST'])
+@handle_db_errors
 def login():
     data = request.get_json()
     required_params = {
@@ -61,12 +58,7 @@ def login():
     login = request.json.get("login")
     password = request.json.get("password")
 
-    try:
-        user = User.get_user_by_username(login)
-    except Exception as e:
-        current_app.logger.error(e)
-        return jsonify({"error": "Internal server error"}), 500
-
+    user = User.get_user_by_username(login)
     if not user:
         return jsonify({"error": "User does not exist"}), 404
 
