@@ -2,30 +2,20 @@ from flask import Blueprint, request, jsonify, current_app
 import bcrypt
 from flask_jwt_extended import create_access_token, create_refresh_token
 from model.user import User
-from utils.handle_errors import handle_db_errors
+from schemas.user_schema import UserSchema
+from utils.handle_errors import handle_db_errors, handle_validation_errors
 
 auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/register', methods=['POST'])
 @handle_db_errors
+@handle_validation_errors
 def register():
-    data = request.get_json()
-    required_params = {
-        "login": str,
-        "password": str
-    }
-    errors = validation(data, required_params)
-    if errors:
-        return jsonify({"error": errors}), 400
+    data = UserSchema().load(request.get_json())
 
-    login = request.json.get("login")
-    password = request.json.get("password")
-
-    if len(login) < 7 or len(login) > 60:
-        return jsonify({"error": "Login must be between 7 and 60 characters"}), 400
-    if len(password) < 7:
-        return jsonify({"error": "Password must have at least 7 characters"}), 400
+    login = data.get('login')
+    password = data.get('password')
 
     existing_user = User.get_user_by_username(login)
     if existing_user:
@@ -40,18 +30,12 @@ def register():
 
 @auth_bp.route('/login', methods=['POST'])
 @handle_db_errors
+@handle_validation_errors
 def login():
-    data = request.get_json()
-    required_params = {
-        "login": str,
-        "password": str
-    }
-    errors = validation(data, required_params)
-    if errors:
-        return jsonify({"error": errors}), 400
+    data = UserSchema().load(request.get_json())
 
-    login = request.json.get("login")
-    password = request.json.get("password")
+    login = data.get("login")
+    password = data.get("password")
 
     user = User.get_user_by_username(login)
     if not user:
@@ -80,14 +64,3 @@ def verify_password(plain_password, hashed_password):
         plain_password.encode('utf-8'),
         hashed_password.encode('utf-8')
     )
-
-
-def validation(data, required_params):
-    errors = []
-    for param, expected_type in required_params.items():
-        if param not in data:
-            errors.append(f"Missing parameter: {param}")
-        elif not isinstance(data[param], expected_type):
-            errors.append(
-                f"Invalid type of parameter: {param}. Expected {expected_type}, received {type(data[param]).__name__}")
-    return errors
