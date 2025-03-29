@@ -9,8 +9,8 @@ auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/register', methods=['POST'])
-@handle_db_errors
 @handle_validation_errors
+@handle_db_errors
 def register():
     data = UserSchema().load(request.get_json())
 
@@ -29,8 +29,8 @@ def register():
 
 
 @auth_bp.route('/login', methods=['POST'])
-@handle_db_errors
 @handle_validation_errors
+@handle_db_errors
 def login():
     data = UserSchema().load(request.get_json())
 
