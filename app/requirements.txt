@@ -1,3 +1,9 @@
 flask
 flask-pgsql
 psycopg2-binary
+flask-sqlalchemy
+psycopg2-binary
+bcrypt
+flask-jwt-extended
+flask-principal
+marshmallow
