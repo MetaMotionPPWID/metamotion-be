@@ -4,9 +4,11 @@ from flask import Flask, current_app, jsonify
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
 from flask_principal import Principal, RoleNeed, Identity, identity_changed
 from werkzeug.exceptions import HTTPException
-from extension import db, jwt
+from extension import db, jwt, api
 from model.role import Role
 from model.token_white_list import TokenWhiteList
+from blueprints.auth import auth_bp
+from blueprints.sensors import sensors_bp
 
 app = Flask(__name__)
 
@@ -19,24 +21,24 @@ jwt_secret_key = os.getenv("JWT_SECRET_KEY")
 
 # db = PostgreSQL(hostname=hostname, port=port, database=database, username=username, password=password)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{username}:{password}@{hostname}:{port}/{database}'
-app.config['JWT_SECRET_KEY'] = jwt_secret_key
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"postgresql://{username}:{password}@{hostname}:{port}/{database}"
+)
+app.config["JWT_SECRET_KEY"] = jwt_secret_key
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=30)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 
 db.init_app(app)
 jwt.init_app(app)
+api.init_app(app)
 principals = Principal(app)
 
 with app.app_context():
     db.create_all()
     Role.create_default_roles()
 
-from blueprints.auth import auth_bp
-from blueprints.sensors import sensors_bp
-
-app.register_blueprint(auth_bp, url_prefix='/auth')
-app.register_blueprint(sensors_bp, url_prefix='/sensors')
+api.add_namespace(auth_bp, path="/auth")
+api.add_namespace(sensors_bp, path="/sensors")
 
 
 @jwt.token_in_blocklist_loader
@@ -70,6 +72,9 @@ def handle_permission_errors(e):
     if e.code == 404:
         current_app.logger.warning(f"Not Found: {e}")
         return jsonify({"error": "Not Found"}), 404
+    elif e.code == 422:
+        current_app.logger.warning(f"Unprocessable Entity: {e}")
+        return jsonify({"error": "Unprocessable Entity"}), 422
     current_app.logger.warning(f"Permission denied: {e}")
     return jsonify({"error": "Permission denied"}), 403
 
@@ -80,5 +85,5 @@ def handle_unexpected_errors(e):
     return jsonify({"error": "Internal server error"}), 500
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000)

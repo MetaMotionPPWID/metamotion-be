@@ -6,4 +6,5 @@ psycopg2-binary
 bcrypt
 flask-jwt-extended
 flask-principal
+flask-restx
 marshmallow
