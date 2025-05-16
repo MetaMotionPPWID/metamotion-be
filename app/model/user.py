@@ -1,7 +1,7 @@
-from constants.default_roles import DefaultRoles
-from model.association import users_roles
-from extension import db
-from model.role import Role
+from app.constants.default_roles import DefaultRoles
+from app.model.association import users_roles
+from app.extension import db
+from app.model.role import Role
 
 
 class User(db.Model):

@@ -1,5 +1,5 @@
 from flask_principal import Permission, RoleNeed
-from constants.default_roles import DefaultRoles
+from app.constants.default_roles import DefaultRoles
 
 admin_permission = Permission(RoleNeed(DefaultRoles.ADMIN.value))
 user_permission = Permission(RoleNeed(DefaultRoles.USER.value))

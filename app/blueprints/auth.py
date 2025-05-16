@@ -9,9 +9,9 @@ from flask_jwt_extended import (
     get_jwt_identity,
     decode_token,
 )
-from model.user import User
-from model.token_white_list import TokenWhiteList
-from utils.handle_errors import handle_db_errors, handle_validation_errors
+from app.model.user import User
+from app.model.token_white_list import TokenWhiteList
+from app.utils.handle_errors import handle_db_errors, handle_validation_errors
 
 auth_bp = Namespace("auth", description="Authentication related endpoints")
 

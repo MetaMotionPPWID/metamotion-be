@@ -1,4 +1,4 @@
-from extension import db
+from app.extension import db
 from sqlalchemy import Float, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -70,6 +70,17 @@ class Sensor(db.Model):
     @classmethod
     def get_sensor_by_mac(cls, mac):
         return cls.query.filter_by(mac=mac).first()
+
+    @classmethod
+    def get_samples_in_time_range(cls, mac, start_time, end_time):
+        sensor = cls.get_sensor_by_mac(mac)
+        if not sensor:
+            return None
+        return Sample.query.filter(
+            Sample.sensor_id == sensor.id,
+            Sample.timestamp >= start_time,
+            Sample.timestamp <= end_time,
+        ).all()
 
     def __repr__(self):
         return f"<Sensor(mac='{self.mac}', name='{self.name}')>"
