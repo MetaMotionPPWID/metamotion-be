@@ -1,25 +1,23 @@
-from constants.default_roles import DefaultRoles
-from model.association import users_roles
-from extension import db
-from model.role import Role
+from app.constants.default_roles import DefaultRoles
+from app.model.association import users_roles
+from app.extension import db
+from app.model.role import Role
 
 
 class User(db.Model):
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     login = db.Column(db.String(60), unique=True, nullable=False)
     password = db.Column(db.String(60), nullable=False)
 
-    roles = db.relationship(
-        'Role',
-        secondary=users_roles,
-        back_populates='users'
-    )
+    roles = db.relationship("Role", secondary=users_roles, back_populates="users")
     tokens = db.relationship(
-        'TokenWhiteList',
-        back_populates='user',
-        cascade='all, delete-orphan'
+        "TokenWhiteList", back_populates="user", cascade="all, delete-orphan"
+    )
+
+    sensors = db.relationship(
+        "Sensor", back_populates="user", cascade="all, delete-orphan"
     )
 
     def save(self):

@@ -1,12 +1,11 @@
-services: 
+services:
   backend:
-    env_file:
-      - ./.env
-    build:
-     context: app
-     target: builder
-    ports: 
-      - '8000:8000'
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+      - JWT_SECRET_KEY=secret
     depends_on:
       - db
     develop:
@@ -15,25 +14,30 @@ services:
           path: ./app
           target: /app
   db:
-    container_name: postgres_meta_motion
     image: postgres:latest
-    env_file:
-      - ./.env
     volumes:
-      - ./db_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
     restart: always
   pgadmin:
-    image: 'docker.io/dpage/pgadmin4:latest'
+    image: "docker.io/dpage/pgadmin4:latest"
     environment:
-      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_DEFAULT_EMAIL}"
-      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD}"
+      PGADMIN_DEFAULT_EMAIL: "admin@meta-motion.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin"
     ports:
       - 15080:80
     volumes:
-      - ./pgadmin-data:/var/lib/pgadmin/
+      - pgadmin_data:/var/lib/pgadmin/
       - ./servers.json:/pgadmin4/servers.json
     depends_on:
       - db
     user: "${UID}:${GID}"
+
+volumes:
+  postgres_data:
+  pgadmin_data:
