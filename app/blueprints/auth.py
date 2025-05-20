@@ -105,6 +105,7 @@ class Login(Resource):
         return {"access_token": access_token, "refresh_token": refresh_token}
 
 
+@auth_bp.route("/refresh")
 class Refresh(Resource):
     @jwt_required(refresh=True)
     @auth_bp.marshal_with(token_schema)
