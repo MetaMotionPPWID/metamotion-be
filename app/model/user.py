@@ -1,7 +1,7 @@
 from app.constants.default_roles import DefaultRoles
-from app.model.association import users_roles
 from app.extension import db
 from app.model.role import Role
+from app.model.association import users_roles
 
 
 class User(db.Model):
@@ -14,10 +14,6 @@ class User(db.Model):
     roles = db.relationship("Role", secondary=users_roles, back_populates="users")
     tokens = db.relationship(
         "TokenWhiteList", back_populates="user", cascade="all, delete-orphan"
-    )
-
-    sensors = db.relationship(
-        "Sensor", back_populates="user", cascade="all, delete-orphan"
     )
 
     def save(self):
