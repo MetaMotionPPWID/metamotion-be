@@ -2,7 +2,6 @@ from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.permissions import user_permission
 from app.utils.handle_errors import handle_db_errors, handle_validation_errors
-from app.model.sensor import Sensor
 import pandas as pd
 import joblib
 import os
@@ -17,6 +16,22 @@ from app.data_loader import (
     vector_magnitude,
     peak_features,
 )
+
+
+def safe_parse_vector(vector_data, default=[0.0, 0.0, 0.0]):
+    """
+    Safely parse vector data from request, defaulting to zeros if invalid
+    """
+    try:
+        if not vector_data or not isinstance(vector_data, list):
+            return default
+        # Ensure we have exactly 3 values, pad with zeros if needed
+        while len(vector_data) < 3:
+            vector_data.append(0.0)
+        # Convert all values to float, use 0.0 for invalid values
+        return [float(x) if x is not None else 0.0 for x in vector_data[:3]]
+    except Exception:
+        return default
 
 
 def extract_features_from_window(
@@ -96,6 +111,30 @@ def extract_features_from_window(
     }
 
 
+def split_into_windows(df, window_size=250):
+    """
+    Split DataFrame into windows of specified size.
+    Only keeps full windows, discards any partial window at the end.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame
+        window_size (int): Size of each window in samples
+
+    Returns:
+        list: List of DataFrame windows
+    """
+    n_windows = len(df) // window_size
+    windows = []
+
+    for i in range(n_windows):
+        start_idx = i * window_size
+        end_idx = (i + 1) * window_size
+        window = df.iloc[start_idx:end_idx].copy()
+        windows.append(window)
+
+    return windows
+
+
 sensors_bp = Namespace("sensors", description="Sensors related endpoints")
 
 sample_schema = sensors_bp.model(
@@ -133,194 +172,110 @@ sensor_schema = sensors_bp.model(
     },
 )
 
-sample_schema_list = sensors_bp.model(
-    "SampleList",
-    {
-        "samples": fields.List(fields.Nested(sample_schema)),
-    },
-)
-
-prediction_schema = sensors_bp.model(
-    "Prediction",
+prediction_result_schema = sensors_bp.model(
+    "PredictionResult",
     {
         "timestamp": fields.DateTime(
-            required=True, description="The timestamp of the prediction window"
+            required=True,
+            description="The timestamp of the window start",
         ),
-        "predicted_activity": fields.String(
-            required=True, description="The predicted activity label"
-        ),
-    },
-)
-
-prediction_schema_list = sensors_bp.model(
-    "PredictionList",
-    {
-        "predictions": fields.List(fields.Nested(prediction_schema)),
-    },
-)
-
-time_range_schema = sensors_bp.model(
-    "TimeRange",
-    {
-        "start_time": fields.DateTime(
-            required=True, description="Start time in ISO format"
-        ),
-        "end_time": fields.DateTime(
-            required=True, description="End time in ISO format"
+        "labels": fields.List(
+            fields.String,
+            required=True,
+            description="The predicted activity labels",
         ),
     },
 )
 
-sensor_schema_list = sensors_bp.model(
-    "SensorList",
+prediction_results_schema = sensors_bp.model(
+    "PredictionResultList",
     {
-        "sensors": fields.List(fields.Nested(sensor_schema)),
+        "results": fields.List(
+            fields.Nested(prediction_result_schema),
+            required=True,
+            description="List of prediction results",
+        ),
     },
 )
 
 
 @sensors_bp.route("/")
-class SensorsList(Resource):
-    @sensors_bp.marshal_list_with(sensor_schema_list)
-    @jwt_required()
-    @user_permission.require(http_exception=403)
-    @handle_validation_errors
-    @handle_db_errors
-    def get(self):
-        username = get_jwt_identity()
-        return {"sensors": Sensor.get_user_sensors(username)}
-
+class Sensors(Resource):
     @sensors_bp.expect(sensor_schema)
-    @sensors_bp.marshal_with(sensor_schema)
+    @sensors_bp.marshal_with(prediction_results_schema)
     @jwt_required()
     @user_permission.require(http_exception=403)
     @handle_validation_errors
     @handle_db_errors
     def post(self):
         data = sensors_bp.payload
-        mac = data["mac"]
-        name = data["name"]
-        samples = data["samples"]
-        username = get_jwt_identity()
-        return Sensor.create_sensor(mac, name, username, samples)
-
-
-@sensors_bp.route("/<string:mac>")
-class SensorObject(Resource):
-    @sensors_bp.marshal_with(sensor_schema)
-    @jwt_required()
-    @user_permission.require(http_exception=403)
-    @handle_validation_errors
-    @handle_db_errors
-    def get(self, mac):
-        sensor = Sensor.get_sensor_by_mac(mac)
-        if not sensor:
-            return {"message": "Sensor not found"}, 404
-        return sensor
-
-
-@sensors_bp.route("/<string:mac>/samples")
-class SensorSamples(Resource):
-    @sensors_bp.marshal_with(sample_schema_list)
-    @jwt_required()
-    @user_permission.require(http_exception=403)
-    @handle_validation_errors
-    @handle_db_errors
-    def get(self, mac):
-        sensor = Sensor.get_sensor_by_mac(mac)
-        if not sensor:
-            return {"message": "Sensor not found"}, 404
-        return {"samples": sensor.samples}
-
-    @sensors_bp.expect(sample_schema_list)
-    @sensors_bp.marshal_with(sample_schema_list)
-    @jwt_required()
-    @user_permission.require(http_exception=403)
-    @handle_validation_errors
-    @handle_db_errors
-    def post(self, mac):
-        data = sensors_bp.payload
-        samples = data["samples"]
-        sensor = Sensor.get_sensor_by_mac(mac)
-        if not sensor:
-            return {"message": "Sensor not found"}, 404
-        saved_samples = Sensor.add_samples(mac, samples).samples
-        return {"samples": saved_samples}
-
-
-@sensors_bp.route("/<string:mac>/samples/prediction")
-class SensorSamplesPrediction(Resource):
-    @sensors_bp.expect(time_range_schema)
-    @sensors_bp.marshal_with(prediction_schema_list)
-    @jwt_required()
-    @user_permission.require(http_exception=403)
-    @handle_validation_errors
-    @handle_db_errors
-    def post(self, mac):
-        data = sensors_bp.payload
-        start_time = data["start_time"]
-        end_time = data["end_time"]
-
-        sensor = Sensor.get_sensor_by_mac(mac)
-        if not sensor:
-            return {"message": "Sensor not found"}, 404
-
-        samples = Sensor.get_samples_in_time_range(mac, start_time, end_time)
+        mac = data.get("mac", "unknown")
+        name = data.get("name", f"Sensor_{mac}")
+        samples = data.get("samples", [])
 
         df_data = []
         for sample in samples:
+            # Safely parse acceleration and gyroscope data
+            acceleration = safe_parse_vector(sample.get("acceleration"))
+            gyroscope = safe_parse_vector(sample.get("gyroscope"))
+
             df_data.append(
                 {
-                    "Timestamp": sample.timestamp,
-                    "Subject-id": sensor.mac,
-                    "activity_label": sample.label,
-                    "acc_x": sample.acceleration[0],
-                    "acc_y": sample.acceleration[1],
-                    "acc_z": sample.acceleration[2],
-                    "gyr_x": sample.gyroscope[0],
-                    "gyr_y": sample.gyroscope[1],
-                    "gyr_z": sample.gyroscope[2],
+                    "Timestamp": pd.to_datetime(sample.get("timestamp")),
+                    "Subject-id": mac,
+                    "activity_label": sample.get("label", "unknown"),
+                    "acc_x": acceleration[0],
+                    "acc_y": acceleration[1],
+                    "acc_z": acceleration[2],
+                    "gyr_x": gyroscope[0],
+                    "gyr_y": gyroscope[1],
+                    "gyr_z": gyroscope[2],
                 }
             )
 
+        if not df_data:
+            return {"results": []}
+
         df = pd.DataFrame(df_data)
+        df = df.sort_values(by="Timestamp")
 
-        df = df.sort_values("Timestamp")
+        # Split into windows of 250 samples
+        windows = split_into_windows(df, window_size=250)
 
-        X = []  # Features
-        timestamps = []  # Store timestamps
+        if len(windows) == 0:
+            return {"results": []}
 
-        results = extract_features_from_window(
-            df,
-            fs=25,
-            axes=[
-                "acc_x",
-                "acc_y",
-                "acc_z",
-                "gyr_x",
-                "gyr_y",
-                "gyr_z",
-            ],
-        )
-        X.append(results)
-        timestamps.append(df["Timestamp"].iloc[0])
-
-        X_df = pd.DataFrame(X)
-
-        nan_columns = X_df.columns[X_df.isna().any()].tolist()
-        if nan_columns:
-            print(f"Columns with NaN values: {nan_columns}")
-            X_df = X_df.fillna(0)
+        # Process each window
+        data = []
+        for window in windows:
+            features = extract_features_from_window(
+                window,
+                fs=25,
+                axes=[
+                    "acc_x",
+                    "acc_y",
+                    "acc_z",
+                    "gyr_x",
+                    "gyr_y",
+                    "gyr_z",
+                ],
+            )
+            data.append(features)
 
         model_path = os.path.join(os.path.dirname(__file__), "..", "model.pkl")
         model = joblib.load(model_path)
 
-        predictions = model.predict(X_df)
-
         results = []
-        for timestamp, prediction in zip(timestamps, predictions):
+        for X, index in zip(data, range(len(data))):
+            X_df = pd.DataFrame(
+                [X]
+            )  # Wrap X in a list to create a single-row DataFrame
+            result = model.predict(X_df)
             results.append(
-                {"timestamp": timestamp.isoformat(), "predicted_activity": prediction}
+                {
+                    "timestamp": windows[index]["Timestamp"].iloc[0],
+                    "labels": list(result),
+                }
             )
 
-        return {"predictions": results}
+        return {"results": results}

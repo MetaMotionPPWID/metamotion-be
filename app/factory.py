@@ -10,6 +10,7 @@ from app.model.role import Role
 from app.model.token_white_list import TokenWhiteList
 from app.blueprints.auth import auth_bp
 from app.blueprints.sensors import sensors_bp
+from app.blueprints.cli import seed_db
 
 
 def create_app():
@@ -28,12 +29,11 @@ def create_app():
     migrate.init_app(app, db)
     principals = Principal(app)
 
-    with app.app_context():
-        if not Role.check_default_roles_exist():
-            Role.create_default_roles()
-
     api.add_namespace(auth_bp, path="/auth")
     api.add_namespace(sensors_bp, path="/sensors")
+
+    # Register CLI commands
+    app.cli.add_command(seed_db)
 
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
