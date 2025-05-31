@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import request, jsonify
+from flask import request
 import bcrypt
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import (
@@ -60,7 +60,7 @@ class Register(Resource):
 
         existing_user = User.get_user_by_username(login)
         if existing_user:
-            return jsonify({"error": "User already exists"}), 400
+            return {"error": "User already exists"}, 400
 
         hashed_password = hash_password(password)
 
@@ -83,7 +83,7 @@ class Login(Resource):
         user = User.get_user_by_username(login)
 
         if not user or not verify_password(password, user.password):
-            return jsonify({"error": "Invalid credentials"}), 401
+            return {"error": "Invalid credentials"}, 401
 
         user_roles = [role.name for role in user.roles]
 
@@ -115,7 +115,7 @@ class Refresh(Resource):
 
         user = User.get_user_by_username(identity)
         if not user:
-            return jsonify({"error": "User not found"}), 404
+            return {"error": "User not found"}, 404
         user_roles = [role.name for role in user.roles]
         additional_claims = {"roles": user_roles}
         new_access_token = create_access_token(

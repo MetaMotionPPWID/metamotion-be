@@ -16,6 +16,10 @@ class User(db.Model):
         "TokenWhiteList", back_populates="user", cascade="all, delete-orphan"
     )
 
+    sensors = db.relationship(
+        "Sensor", back_populates="user", cascade="all, delete-orphan"
+    )
+
     def save(self):
         db.session.add(self)
         db.session.commit()
