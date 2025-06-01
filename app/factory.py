@@ -20,7 +20,7 @@ def create_app():
         "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/postgres"
     ).replace("postgres://", "postgresql://")
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "secret")
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=30)
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=28)
     app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 
     db.init_app(app)
