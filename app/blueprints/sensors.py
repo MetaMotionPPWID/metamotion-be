@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.permissions import user_permission
 from app.utils.handle_errors import handle_db_errors, handle_validation_errors
 from app.extension import db
-from app.model.sesnor import Sensor, Sample
+from app.model.sesnor import Sensor, Sample, WindowFeatures
 import pandas as pd
 import joblib
 import os
@@ -356,6 +356,16 @@ class Sensors(Resource):
                 [X]
             )  # Wrap X in a list to create a single-row DataFrame
             result = model.predict(X_df)
+            window_start = windows[index]["Timestamp"].iloc[0]
+
+            new_window_features = WindowFeatures(
+                sensor_id=sensor.id,
+                window_start=window_start,
+                features=X,  # JSON-serializable dict
+                prediction_label=prediction_label,
+            )
+            db.session.add(new_window_features)
+
             results.append(
                 {
                     "timestamp": windows[index]["Timestamp"].iloc[0],
