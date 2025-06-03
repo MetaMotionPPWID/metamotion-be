@@ -403,3 +403,32 @@ class SensorsDump(Resource):
             "total_samples": total_samples,
             "sensors": sensors_data,
         }
+
+@sensors_bp.route("/result")
+class UserResults(Resource):
+    @jwt_required()
+    @user_permission.require(http_exception=403)
+    @handle_db_errors
+    def get(self):
+        """
+        Get all prediction results (WindowFeatures) for the currently authenticated user.
+        """
+        current_user_id = get_jwt_identity()
+
+        results = (
+            db.session.query(WindowFeatures)
+            .join(Sensor)
+            .filter(Sensor.user_id == current_user_id)
+            .all()
+        )
+
+        results_data = []
+        for result in results:
+            results_data.append({
+                "sensor_id": result.sensor_id,
+                "window_start": result.window_start.isoformat(),
+                "features": result.features,
+                "prediction_label": result.prediction_label
+            })
+
+        return {"total_results": len(results_data), "results": results_data}
