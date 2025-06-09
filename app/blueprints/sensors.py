@@ -347,7 +347,7 @@ class Sensors(Resource):
             )
             data.append(features)
 
-        model_path = os.path.join(os.path.dirname(__file__), "..", "model.pkl")
+        model_path = os.path.join(os.path.dirname(__file__), "..", "model.joblib")
         model = joblib.load(model_path)
 
         results = []
