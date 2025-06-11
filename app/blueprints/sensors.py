@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.permissions import user_permission
 from app.utils.handle_errors import handle_db_errors, handle_validation_errors
 from app.extension import db
-from app.model.sesnor import Sensor, Sample
+from app.model.sesnor import Sensor, Sample, WindowFeatures
 import pandas as pd
 import joblib
 import os
@@ -356,6 +356,16 @@ class Sensors(Resource):
                 [X]
             )  # Wrap X in a list to create a single-row DataFrame
             result = model.predict(X_df)
+            window_start = windows[index]["Timestamp"].iloc[0]
+
+            new_window_features = WindowFeatures(
+                sensor_id=sensor.id,
+                window_start=window_start,
+                features=X,  # JSON-serializable dict
+                prediction_label=prediction_label,
+            )
+            db.session.add(new_window_features)
+
             results.append(
                 {
                     "timestamp": windows[index]["Timestamp"].iloc[0],
@@ -393,3 +403,32 @@ class SensorsDump(Resource):
             "total_samples": total_samples,
             "sensors": sensors_data,
         }
+
+@sensors_bp.route("/result")
+class UserResults(Resource):
+    @jwt_required()
+    @user_permission.require(http_exception=403)
+    @handle_db_errors
+    def get(self):
+        """
+        Get all prediction results (WindowFeatures) for the currently authenticated user.
+        """
+        current_user_id = get_jwt_identity()
+
+        results = (
+            db.session.query(WindowFeatures)
+            .join(Sensor)
+            .filter(Sensor.user_id == current_user_id)
+            .all()
+        )
+
+        results_data = []
+        for result in results:
+            results_data.append({
+                "sensor_id": result.sensor_id,
+                "window_start": result.window_start.isoformat(),
+                "features": result.features,
+                "prediction_label": result.prediction_label
+            })
+
+        return {"total_results": len(results_data), "results": results_data}

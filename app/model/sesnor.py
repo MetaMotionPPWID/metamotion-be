@@ -19,7 +19,7 @@ class Sensor(db.Model):
     user = relationship("User", back_populates="sensors")
     samples = relationship(
         "Sample", back_populates="sensor", cascade="all, delete-orphan"
-    )
+    )#TODO - User example
 
     def __repr__(self):
         return f"<Sensor(mac='{self.mac}', name='{self.name}')>"
@@ -105,3 +105,15 @@ class Sample(db.Model):
         db.session.add(sample)
         db.session.commit()
         return sample
+
+
+class WindowFeatures(db.Model):
+    __tablename__ = "window_features"
+
+    id = db.Column(db.Integer, primary_key=True)
+    sensor_id = db.Column(db.Integer, db.ForeignKey("sensor.id"), nullable=False)
+    window_start = db.Column(db.DateTime, nullable=False)
+    features = db.Column(db.JSON, nullable=False)
+    prediction_label = db.Column(db.String, nullable=False)
+
+    sensor = db.relationship("Sensor", backref=db.backref("windows", lazy=True))
